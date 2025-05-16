@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mind Bloom</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Poppins', sans-serif;
+      margin: 0;
+      background: linear-gradient(135deg, #a8edea, #fed6e3);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+      color: #333;
+    }
+    .header {
+      text-align: center;
+      margin-top: 20px;
+      margin-bottom: 30px;
+    }
+    .header h1 {
+      font-size: 2.8rem;
+      margin: 0;
+      color: #6c5ce7;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+    }
+    .header .tagline {
+      font-size: 1.2rem;
+      color: #555;
+      font-style: italic;
+      margin-top: 5px;
+    }
+    .container {
+      background: rgba(255, 255, 255, 0.6);
+      backdrop-filter: blur(12px);
+      border-radius: 20px;
+      padding: 25px;
+      max-width: 620px;
+      width: 100%;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    }
+    input, select, button {
+      width: 100%;
+      padding: 12px 15px;
+      margin: 10px 0;
+      border-radius: 12px;
+      border: none;
+      font-size: 1rem;
+      background: rgba(255,255,255,0.9);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+      outline: none;
+      font-weight: 600;
+    }
+    button {
+      background: #6c5ce7;
+      color: white;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.3s, transform 0.2s;
+    }
+    button:hover {
+      background: #5941b4;
+      transform: scale(1.03);
+    }
+    .task-list {
+      margin-top: 15px;
+      max-height: 200px;
+      overflow-y: auto;
+      padding-right: 10px;
+    }
+    .task {
+      background: rgba(255,255,255,0.95);
+      padding: 12px 16px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 600;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .emotion {
+      color: #6c5ce7;
+      font-weight: 700;
+      font-style: italic;
+    }
+    .avatar-container {
+      margin: 20px auto 10px;
+      width: 130px;
+      height: 130px;
+      border-radius: 50%;
+      background: rgba(108,92,231,0.3);
+      box-shadow: 0 0 20px rgba(108,92,231,0.4);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .avatar-emoji {
+      font-size: 5rem;
+      transition: transform 0.4s ease;
+    }
+    .ai-response, .daily-challenge, .weekly-story {
+      margin-top: 20px;
+      padding: 16px 20px;
+      border-left: 5px solid #6c5ce7;
+      border-radius: 10px;
+      background: rgba(108,92,231,0.1);
+      color: #3a2d99;
+      font-style: italic;
+      font-weight: 600;
+      box-shadow: 0 2px 10px rgba(108,92,231,0.2);
+    }
+    canvas {
+      margin-top: 25px;
+      border-radius: 12px;
+      box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <h1>Mind Bloom</h1>
+    <p class="tagline">El arte de florecer y crecer</p>
+  </header>
+
+  <div class="container">
+    <div class="avatar-container" id="avatarContainer" title="Tu avatar emocional">
+      <span class="avatar-emoji" id="avatarEmoji">🙂</span>
+    </div>
+
+    <input type="date" id="dateInput" />
+    <input type="text" id="taskInput" placeholder="¿Qué tienes que hacer hoy?" />
+    <select id="emotionSelect" aria-label="Selecciona tu emoción">
+      <option value="">¿Cómo te sientes?</option>
+      <option value="Feliz">Feliz</option>
+      <option value="Triste">Triste</option>
+      <option value="Estresado/a">Estresado/a</option>
+      <option value="Motivado/a">Motivado/a</option>
+      <option value="Cansado/a">Cansado/a</option>
+    </select>
+    <button id="addBtn">Agregar Tarea y Emoción</button>
+
+    <div class="task-list" id="taskList" aria-live="polite"></div>
+    <div class="ai-response" id="aiResponse" aria-live="polite"></div>
+    <div class="daily-challenge" id="dailyChallenge" aria-live="polite"></div>
+    <canvas id="emotionChart" width="600" height="300" aria-label="Gráfica de emociones"></canvas>
+    <div class="weekly-story" id="weeklyStory" aria-live="polite"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    let tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+    let emotionChartInstance = null;
+
+    const colors = {
+      'Feliz': '#ffd93b',
+      'Triste': '#4a90e2',
+      'Estresado/a': '#f44336',
+      'Motivado/a': '#ff7043',
+      'Cansado/a': '#9e9e9e'
+    };
+
+    const taskList = document.getElementById('taskList');
+    const aiResponse = document.getElementById('aiResponse');
+    const dailyChallenge = document.getElementById('dailyChallenge');
+    const weeklyStory = document.getElementById('weeklyStory');
+    const avatarEmoji = document.getElementById('avatarEmoji');
+    const avatarContainer = document.getElementById('avatarContainer');
+    const emotionChart = document.getElementById('emotionChart');
+    const dateInput = document.getElementById('dateInput');
+    const taskInput = document.getElementById('taskInput');
+    const emotionSelect = document.getElementById('emotionSelect');
+    const addBtn = document.getElementById('addBtn');
+
+    dateInput.value = new Date().toISOString().split('T')[0];
+
+    function displayTasks() {
+      taskList.innerHTML = tasks.length
+        ? tasks.map(({ date, task, emotion }) =>
+            `<div class="task"><span><b>${date}</b>: ${task}</span><span class="emotion">(${emotion})</span></div>`
+          ).join('')
+        : '<p style="font-style: italic; color: #666;">No hay tareas aún. ¡Agrega la primera!</p>';
+    }
+
+    function updateAvatar(emotion) {
+      const emojis = {
+        'Feliz': '😄',
+        'Triste': '😢',
+        'Estresado/a': '😣',
+        'Motivado/a': '🔥',
+        'Cansado/a': '😴'
+      };
+      const bgColors = {
+        'Feliz': 'rgba(255,223,93,0.5)',
+        'Triste': 'rgba(93,164,255,0.5)',
+        'Estresado/a': 'rgba(255,100,100,0.5)',
+        'Motivado/a': 'rgba(255,150,60,0.5)',
+        'Cansado/a': 'rgba(150,150,150,0.5)'
+      };
+      avatarEmoji.textContent = emojis[emotion] || '🙂';
+      avatarContainer.style.background = bgColors[emotion] || 'rgba(108,92,231,0.3)';
+      avatarEmoji.style.transform = 'scale(1.2)';
+      setTimeout(() => avatarEmoji.style.transform = 'scale(1)', 400);
+    }
+
+    function generateAIResponse(emotion) {
+      const messages = {
+        'Feliz': '¡Genial que estés feliz! Aprovecha para avanzar en tus proyectos.',
+        'Triste': 'Está bien sentirse triste, date un tiempo para cuidarte.',
+        'Estresado/a': 'Toma un respiro profundo y un descanso corto. ¡Tú puedes!',
+        'Motivado/a': '¡Esa motivación es poderosa! Usa esa energía para lograr metas.',
+        'Cansado/a': 'Tu cuerpo necesita descanso, escucha sus señales.'
+      };
+      aiResponse.textContent = messages[emotion] || 'Cuídate mucho hoy.';
+    }
+
+    const challenges = [
+      'Escribe tres cosas por las que estás agradecido/a hoy.',
+      'Tómate 5 minutos para respirar profundamente.',
+      'Haz una caminata corta para despejarte.',
+      'Escribe un mensaje amable para ti mismo/a.',
+      'Haz algo que te guste, aunque sea pequeño.',
+      'Escucha tu canción favorita y baila un poco.',
+      'Piensa en una meta pequeña para hoy y anótala.'
+    ];
+
+    function showDailyChallenge() {
+      const idx = new Date().getDate() % challenges.length;
+      dailyChallenge.textContent = 'Reto del día: ' + challenges[idx];
+    }
+
+    function countEmotions() {
+      const counts = { 'Feliz': 0, 'Triste': 0, 'Estresado/a': 0, 'Motivado/a': 0, 'Cansado/a': 0 };
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+      tasks.forEach(({ date, emotion }) => {
+        if (new Date(date) >= oneWeekAgo && counts[emotion] !== undefined) counts[emotion]++;
+      });
+      return counts;
+    }
+
+    function createStory(counts) {
+      const total = Object.values(counts).reduce((a, b) => a + b, 0);
+      if (total === 0) return 'Esta semana no registraste emociones, ¡anímate a hacerlo!';
+      const parts = Object.entries(counts)
+        .filter(([_, count]) => count > 0)
+        .map(([emotion, count]) => `${count} día(s) ${emotion.toLowerCase()}`);
+      let story = 'Esta semana tuviste ' + parts.join(', ') + '. ';
+      if (counts['Triste'] > 2) {
+        story += 'Parece que algunos días fueron difíciles, recuerda cuidar de ti.';
+      } else if (counts['Feliz'] >= 3) {
+        story += '¡Has tenido días muy felices, sigue así!';
+      } else {
+        story += 'Tu semana fue una mezcla, ¡sigue registrando para conocerte mejor!';
+      }
+      return story;
+    }
+
+    function showChart(counts) {
+      const ctx = emotionChart.getContext('2d');
+      if (emotionChartInstance) emotionChartInstance.destroy();
+      emotionChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: Object.keys(counts),
+          datasets: [{
+            label: 'Días con cada emoción (última semana)',
+            data: Object.values(counts),
+            backgroundColor: Object.values(colors),
+            borderRadius: 10,
+            borderSkipped: false
+          }]
+        },
+        options: {
+          responsive: true,
+          animation: {
+            duration: 1200,
+            easing: 'easeOutBounce'
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                precision: 0
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              display: false
+            }
+          }
+        }
+      });
+    }
+
+    function updateWeeklySummary() {
+      const counts = countEmotions();
+      showChart(counts);
+      weeklyStory.textContent = createStory(counts);
+    }
+
+    addBtn.addEventListener('click', () => {
+      const date = dateInput.value;
+      const task = taskInput.value.trim();
+      const emotion = emotionSelect.value;
+      if (!date || !task || !emotion) {
+        alert('Por favor completa todos los campos.');
+        return;
+      }
+      tasks.push({ date, task, emotion });
+      localStorage.setItem('tasks', JSON.stringify(tasks));
+      displayTasks();
+      updateAvatar(emotion);
+      generateAIResponse(emotion);
+      updateWeeklySummary();
+      showDailyChallenge();
+      taskInput.value = '';
+      emotionSelect.value = '';
+    });
+
+    function init() {
+      displayTasks();
+      showDailyChallenge();
+      if (tasks.length > 0) {
+        const lastEmotion = tasks[tasks.length - 1].emotion;
+        updateAvatar(lastEmotion);
+        generateAIResponse(lastEmotion);
+        updateWeeklySummary();
+      } else {
+        weeklyStory.textContent = 'Agrega tus emociones y tareas para ver un resumen semanal aquí.';
+        showChart({ 'Feliz': 0, 'Triste': 0, 'Estresado/a': 0, 'Motivado/a': 0, 'Cansado/a': 0 });
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
